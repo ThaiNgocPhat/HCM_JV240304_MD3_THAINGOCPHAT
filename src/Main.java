@@ -11,14 +11,17 @@ import utils.InputUtil;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class Main {
     private static CategoryService categoryService = new CategoryService();
     private static ProductService productService = new ProductService();
     private static UserService userService = new UserService();
     private static OrderService orderService = new OrderService();
+    private static IOFile<Object> productIO;
+
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         while (true) {
             System.out.println("1. Admin login");
@@ -86,13 +89,13 @@ public class Main {
             int choice = Integer.parseInt(InputUtil.getString("Enter choice: "));
             switch (choice) {
                 case 1:
-//                    viewProducts();
+                    viewProducts();
                     break;
                 case 2:
-//                    placeOrder();
+                    placeOrder();
                     break;
                 case 3:
-//                    viewOrders();
+                    viewOrders();
                     break;
                 case 4:
                     System.out.println("Logout successful!");
@@ -107,25 +110,29 @@ public class Main {
         while (true) {
             System.out.println("----------Manage Categories----------");
             System.out.println("1. Add Category");
-            System.out.println("2. View Categories");
-            System.out.println("3. Update Category");
-            System.out.println("4. Delete Category");
-            System.out.println("5. Back to Admin Menu");
+            System.out.println("2. Find Category by ID");
+            System.out.println("3. View Categories");
+            System.out.println("4. Update Category");
+            System.out.println("5. Delete Category");
+            System.out.println("6. Back to Admin Menu");
             int choice = Integer.parseInt(InputUtil.getString("Enter choice: "));
             switch (choice) {
                 case 1:
                     addCategory();
                     break;
                 case 2:
-                    viewCategories();
+                    findById();
                     break;
                 case 3:
-                    updateCategory();
+                    viewCategories();
                     break;
                 case 4:
-                    deleteCategory();
+                    updateCategory();
                     break;
                 case 5:
+                    deleteCategory();
+                    break;
+                case 6:
                     System.out.println("Back to Admin Menu");
                     return;
                 default:
@@ -134,7 +141,7 @@ public class Main {
         }
     }
 
-    private static void manageProducts() {
+    private static void manageProducts() throws IOException, ClassNotFoundException {
         while (true) {
             System.out.println("-----------Manage Products-----------");
             System.out.println("1. Add Product");
@@ -225,15 +232,17 @@ public class Main {
     //đăng ký cho user
     public static void register() throws IOException, ClassNotFoundException {
         System.out.println("---------- Register ----------");
+        // Input user details
         String name = InputUtil.getString("Enter your name: ");
         String email = InputUtil.getString("Enter your email: ");
         String password = InputUtil.getString("Enter your password: ");
         String phone = InputUtil.getString("Enter your phone number: ");
         String address = InputUtil.getString("Enter your address: ");
-        System.out.println("Register successful!");
+        // Initialize IOFile object and target file
         IOFile<User> userIO = new IOFile<>();
         File file = new File(IOFile.USER_PATH);
         File dir = file.getParentFile();
+        // Ensure the directory exists or create it
         if (!dir.exists()) {
             if (dir.mkdirs()) {
                 System.out.println("Directory created: " + dir.getPath());
@@ -242,18 +251,41 @@ public class Main {
                 return;
             }
         }
-        try {
-            if (!file.exists() && file.createNewFile()) {
-                System.out.println("File created: " + file.getPath());
+        // Ensure the file exists or create it
+        if (!file.exists()) {
+            try {
+                if (file.createNewFile()) {
+                    System.out.println("File created: " + file.getPath());
+                }
+            } catch (IOException e) {
+                System.err.println("Failed to create file: " + file.getPath());
+                e.printStackTrace();
+                return;
             }
-        } catch (IOException e) {
+        }
+        // Read existing users from file
+        List<User> users;
+        try {
+            users = userIO.readFromFile(IOFile.USER_PATH);
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Failed to read users from file");
             e.printStackTrace();
             return;
         }
-        List<User> users = userIO.readFromFile(IOFile.USER_PATH);
-        User user = new User(name, email, password, phone, address);
+        // Generate new user ID
+        int newId = users.isEmpty() ? 1 : users.get(users.size() - 1).getId() + 1;
+        // Create a new user object with the generated ID
+        User user = new User(newId, name, email, password, phone, address);
+        // Add the new user to the list
         users.add(user);
-        userIO.writeToFile(IOFile.USER_PATH, users);
+        // Write the updated user list back to the file
+        try {
+            userIO.writeToFile(IOFile.USER_PATH, users);
+            System.out.println("User registered successfully!");
+        } catch (IOException e) {
+            System.err.println("Failed to write users to file");
+            e.printStackTrace();
+        }
     }
 
     //đăng nhập đối với user
@@ -272,152 +304,297 @@ public class Main {
         }
         System.out.println("Login failed. Please try again.");
     }
+
     //Add Category
-    public static void addCategory() throws IOException, ClassNotFoundException {
-        String name = InputUtil.getString("Enter category name: ");
-        int quantity = Integer.parseInt(InputUtil.getString("Enter quantity: "));
-        Category category = new Category(name, quantity);
-        categoryService.create(category);
-        System.out.println("Category added successfully!");
+    public static void addCategory() {
+        try {
+            // Nhập thông tin danh mục từ người dùng
+            System.out.println("---------- Thêm Danh Mục ----------");
+            String name = InputUtil.getString("Nhập tên danh mục: ");
 
-        // Save the category to Category.txt
-        IOFile<Category> categoryIOFile = new IOFile<>();
-        File file = new File(IOFile.CATEGORY_PATH);
-        File dir = file.getParentFile();
-
-        // Ensure the directory exists
-        if (!dir.exists()) {
-            if (dir.mkdirs()) {
-                System.out.println("Directory created: " + dir.getPath());
-            } else {
-                System.err.println("Failed to create directory: " + dir.getPath());
+            // Kiểm tra tên không được để trống
+            if (name == null || name.trim().isEmpty()) {
+                System.err.println("Tên danh mục không được để trống.");
                 return;
             }
-        }
 
-        // Ensure the file exists
-        try {
-            if (!file.exists() && file.createNewFile()) {
-                System.out.println("File created: " + file.getPath());
+            // Tạo đối tượng danh mục
+            Category category = new Category();
+            category.setCategoryName(name);
+
+            // Đảm bảo service đã được khởi tạo
+            if (categoryService == null) {
+                System.err.println("Dịch vụ danh mục chưa được khởi tạo.");
+                return;
             }
-        } catch (IOException e) {
-            System.err.println("Error creating file: " + e.getMessage());
+
+            // Lấy danh sách danh mục hiện tại
+            List<Category> categories = categoryService.getAll();
+
+            // Tìm id lớn nhất và tăng lên 1 để làm id cho danh mục mới
+            int maxId = 0;
+            for (Category cat : categories) {
+                int catId = Integer.parseInt(cat.getCategoryId());
+                if (catId > maxId) {
+                    maxId = catId;
+                }
+            }
+            // Tăng id lớn nhất lên 1 để làm id cho danh mục mới
+            String newCategoryId = String.valueOf(maxId + 1);
+            category.setCategoryId(Integer.parseInt(newCategoryId));
+
+            // Thêm danh mục vào service
+            categoryService.create(category);
+            System.out.println("Đã thêm danh mục thành công!");
+
+            // Lưu danh mục vào file
+            IOFile<Category> categoryIOFile = new IOFile<>();
+            File file = new File(IOFile.CATEGORY_PATH);
+            File dir = file.getParentFile();
+
+            // Tạo thư mục nếu chưa tồn tại
+            if (!dir.exists()) {
+                if (dir.mkdirs()) {
+                    System.out.println("Đã tạo thư mục: " + dir.getPath());
+                } else {
+                    System.err.println("Không thể tạo thư mục: " + dir.getPath());
+                    return;
+                }
+            }
+
+            // Tạo file nếu chưa tồn tại
+            if (!file.exists()) {
+                try {
+                    if (file.createNewFile()) {
+                        System.out.println("Đã tạo file: " + file.getPath());
+                    }
+                } catch (IOException e) {
+                    System.err.println("Không thể tạo file: " + file.getPath());
+                    e.printStackTrace();
+                    return;
+                }
+            }
+
+            // Đọc danh sách danh mục từ file
+            try {
+                categories = categoryIOFile.readFromFile(IOFile.CATEGORY_PATH);
+            } catch (IOException | ClassNotFoundException e) {
+                System.err.println("Không thể đọc danh mục từ file");
+                e.printStackTrace();
+                return;
+            }
+
+            // Thêm danh mục mới vào danh sách
+            categories.add(category);
+
+            // Ghi danh sách danh mục đã cập nhật vào file
+            try {
+                categoryIOFile.writeToFile(IOFile.CATEGORY_PATH, categories);
+                System.out.println("Đã lưu danh sách danh mục vào file thành công!");
+            } catch (IOException e) {
+                System.err.println("Không thể ghi danh sách danh mục vào file");
+                e.printStackTrace();
+            }
+
+        } catch (Exception e) {
+            System.err.println("Đã xảy ra lỗi khi thêm danh mục");
             e.printStackTrace();
-            return;
         }
+    }
 
-        // Read existing categories, add new category, and write back to the file
-        List<Category> categories = categoryIOFile.readFromFile(IOFile.CATEGORY_PATH);
-        if (categories == null) {
-            categories = new ArrayList<>();
+
+
+
+    //Find by id
+    public static void findById() {
+        String id = InputUtil.getString("Enter category ID to find: ");
+        Category category = categoryService.read(id);
+        if (category != null) {
+            System.out.println("ID: " + category.getCategoryId() + ", Name: " + category.getCategoryName());
+        } else {
+            System.out.println("Category with ID " + id + " not found.");
         }
-        categories.add(category);
-        categoryIOFile.writeToFile(IOFile.CATEGORY_PATH, categories);
-        System.out.println("Category saved to file successfully!");
     }
 
 
-    //View all Category
-    public static void viewCategories(){
-        List<Category> categories = categoryService.getAll();
-        for (Category category : categories){
-            System.out.println("ID: " + category.getCategoryId() + ", Name: " + category.getCategoryName() + ", Quantity: " + category.getCategoryQuantity());
+
+//    View all Category
+public static void viewCategories() {
+    List<Category> categories = categoryService.getAll();
+    if (categories.isEmpty()) {
+        System.out.println("Không có danh mục nào.");
+    } else {
+        System.out.println("ID\tTên");
+        for (Category category : categories) {
+            System.out.println(category.getCategoryId() + "\t" + category.getCategoryName());
         }
     }
+}
+
+
 
     //Update Category
     public static void updateCategory() {
         IOFile<Category> categoryIOFile = new IOFile<>();
         File file = new File(IOFile.CATEGORY_PATH);
-        // Ensure the file exists
+        // Đảm bảo file tồn tại
         if (!file.exists()) {
-            System.out.println("Category file does not exist.");
+            System.out.println("File danh mục không tồn tại.");
             return;
         }
         try {
             List<Category> categories = categoryIOFile.readFromFile(IOFile.CATEGORY_PATH);
-            String id = InputUtil.getString("Enter category ID to update: ");
+            String id = InputUtil.getString("Nhập ID danh mục cần cập nhật: ");
             Category category = categoryService.read(id);
             if (category != null) {
-                String name = InputUtil.getString("Enter new category name: ");
-                int quantity = Integer.parseInt(InputUtil.getString("Enter new quantity: "));
+                String name = InputUtil.getString("Nhập tên danh mục mới: ");
                 category.setCategoryName(name);
-                category.setCategoryQuantity(quantity);
                 categoryService.update(category);
-                // Update the category in the list
+                // Cập nhật danh mục trong danh sách
                 for (int i = 0; i < categories.size(); i++) {
                     if (categories.get(i).getCategoryId().equals(id)) {
                         categories.set(i, category);
                         break;
                     }
                 }
-                // Write updated list back to file
+                // Ghi danh sách đã cập nhật vào file
                 categoryIOFile.writeToFile(IOFile.CATEGORY_PATH, categories);
-                System.out.println("Category updated successfully and saved to file!");
+                System.out.println("Đã cập nhật danh mục thành công và lưu vào file!");
             } else {
-                System.out.println("Category not found");
+                System.out.println("Không tìm thấy danh mục");
             }
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error reading or writing file: " + e.getMessage());
+            System.err.println("Lỗi khi đọc hoặc ghi file: " + e.getMessage());
             e.printStackTrace();
         }
     }
-    public static void deleteCategory(){
-        String id = InputUtil.getString("Enter category ID to delete: ");
-        categoryService.delete(id);
-        System.out.println("Deleted successfully");
+
+
+
+    //Delete Category
+    public static void deleteCategory() {
+        String id = InputUtil.getString("Nhập ID danh mục cần xóa: ");
+        Category category = categoryService.read(id);
+        if (category != null) {
+            // Xóa danh mục
+            categoryService.delete(id);
+            System.out.println("Đã xóa danh mục thành công.");
+
+            // Tùy chọn, xóa khỏi file nếu cần
+            IOFile<Category> categoryIOFile = new IOFile<>();
+            try {
+                List<Category> categories = categoryIOFile.readFromFile(IOFile.CATEGORY_PATH);
+                categories.removeIf(c -> c.getCategoryId().equals(id));
+                categoryIOFile.writeToFile(IOFile.CATEGORY_PATH, categories);
+                System.out.println("Đã xóa danh mục khỏi file.");
+            } catch (IOException | ClassNotFoundException e) {
+                System.err.println("Lỗi khi cập nhật file sau khi xóa: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Không tìm thấy danh mục có ID " + id);
+        }
     }
 
+
+
+
+    //ADD PRODUCT
     public static void addProduct() {
-        String productName = InputUtil.getString("Enter product name: ");
-        String productDes = InputUtil.getString("Enter description: ");
-        int quantity = Integer.parseInt(InputUtil.getString("Enter quantity: "));
-        double productPrice = Double.parseDouble(InputUtil.getString("Enter product price: "));
-        String category = InputUtil.getString("Enter product category: ");
+        try {
+            System.out.println("---------- Add Product ----------");
 
-        Product product = new Product(productName, productDes, productPrice, quantity, category);
-        productService.create(product);
-        System.out.println("Product added successfully!");
-
-        // Save the product to Product.txt
-        IOFile<Product> productIOFile = new IOFile<>();
-        File file = new File(IOFile.PRODUCT_PATH);
-        File dir = file.getParentFile();
-
-        // Ensure the directory exists
-        if (!dir.exists()) {
-            if (dir.mkdirs()) {
-                System.out.println("Directory created: " + dir.getPath());
-            } else {
-                System.err.println("Failed to create directory: " + dir.getPath());
+            // Validate and get product name
+            String productName = InputUtil.getString("Enter product name: ");
+            if (productName.isEmpty()) {
+                System.err.println("Product name cannot be empty. Please try again.");
                 return;
             }
-        }
-        // Ensure the file exists
-        try {
-            if (!file.exists() && file.createNewFile()) {
-                System.out.println("File created: " + file.getPath());
+
+            // Validate and get product description
+            String productDescription = InputUtil.getString("Enter product description: ");
+            if (productDescription.isEmpty()) {
+                System.err.println("Product description cannot be empty. Please try again.");
+                return;
             }
-        } catch (IOException e) {
-            System.err.println("Error creating file: " + e.getMessage());
-            e.printStackTrace();
-            return;
-        }
-        // Read existing products, add new product, and write back to the file
-        try {
-            List<Product> products = productIOFile.readFromFile(IOFile.PRODUCT_PATH);
-            if (products == null) {
-                products = new ArrayList<>();
+
+            // Validate and get product quantity
+            int quantity;
+            while (true) {
+                try {
+                    quantity = Integer.parseInt(InputUtil.getString("Enter quantity: "));
+                    if (quantity <= 0) {
+                        System.err.println("Quantity must be greater than zero. Please try again.");
+                        continue;
+                    }
+                    break;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid input for quantity, please enter a valid integer.");
+                }
             }
+
+            // Validate and get product price
+            double productPrice;
+            while (true) {
+                try {
+                    productPrice = Double.parseDouble(InputUtil.getString("Enter product price: "));
+                    if (productPrice <= 0) {
+                        System.err.println("Product price must be greater than zero. Please try again.");
+                        continue;
+                    }
+                    break;
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid input for product price, please enter a valid number.");
+                }
+            }
+
+            // Ensure categories are loaded or created
+            List<Category> categories = categoryService.getAll();
+            if (categories.isEmpty()) {
+                System.out.println("No categories found. Please add categories first.");
+                return;
+            }
+
+            // Display available categories for user selection
+            System.out.println("Available categories:");
+            for (Category category : categories) {
+                System.out.println("- ID: " + category.getCategoryId() + ", Name: " + category.getCategoryName());
+            }
+
+            // Prompt user to enter category ID
+            String categoryIdInput = InputUtil.getString("Enter category ID for the product: ");
+            Optional<Category> selectedCategory = categories.stream()
+                    .filter(category -> category.getCategoryId().equals(categoryIdInput))
+                    .findFirst();
+
+            if (!selectedCategory.isPresent()) {
+                System.err.println("Invalid category ID. Please try again.");
+                return;
+            }
+
+            // Create a new product object with the collected information
+            Product product = new Product(productName, productDescription, productPrice, quantity, categoryIdInput);
+
+            // Add the new product to the list
+            List<Product> products = productService.getAllProducts();
             products.add(product);
-            productIOFile.writeToFile(IOFile.PRODUCT_PATH, products);
-            System.out.println("Product saved to file successfully!");
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error reading or writing file: " + e.getMessage());
+
+            // Save the updated list of products
+            productService.saveProducts(products);
+
+            System.out.println("Product added successfully!");
+        } catch (Exception e) {
+            System.err.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
+
+
+
+
+
+    //DISPLAY PRODUCT
     public static void viewProducts(){
         List<Product> products = productService.getAll();
         for(Product product : products){
@@ -425,6 +602,8 @@ public class Main {
             + ", Quantity: " + product.getQuantity() + ", Price: " + product.getProductPrice() + ", Category: " + product.getCategory());
         }
     }
+
+    //UPDATE PRODUCT
     public static void updateProduct() {
         IOFile<Product> productIOFile = new IOFile<>();
         File file = new File(IOFile.PRODUCT_PATH);
@@ -434,7 +613,6 @@ public class Main {
             System.out.println("Product file does not exist.");
             return;
         }
-
         try {
             List<Product> products = productIOFile.readFromFile(IOFile.PRODUCT_PATH);
 
@@ -451,9 +629,6 @@ public class Main {
                 product.setProductPrice(price);
                 product.setQuantity(quantity);
                 productService.update(product);
-                // Write updated list back to file
-                productIOFile.writeToFile(IOFile.PRODUCT_PATH, products);
-                System.out.println("Product updated successfully and saved to file!");
                 // Write updated list back to file
                 productIOFile.writeToFile(IOFile.PRODUCT_PATH, products);
                 System.out.println("Product updated successfully and saved to file!");
@@ -513,6 +688,32 @@ public class Main {
             System.out.println("Status update successfully. !!!");
         }else{
             System.out.println("Order not found");
+        }
+    }
+    public static void placeOrder() {
+        //tạo đơn hàng mới
+        Order order = new Order();
+        order.setUserId(InputUtil.getString("Enter user ID: "));
+        List<Product> products = productService.getAll();
+        System.out.println("Products available:");
+        for (Product product : products) {
+            System.out.println("ID: " + product.getProductId() + ", Name: " + product.getProductName() + ", Price: " + product.getProductPrice());
+        }
+        int productId = Integer.parseInt(InputUtil.getString("Enter product ID to add to order: "));
+        Product product = productService.read(String.valueOf(productId));
+        if (product != null) {
+            order.addProduct(product);
+            orderService.create(order);
+            System.out.println("Order placed successfully. Order ID: " + order.getOrderId());
+        } else {
+            System.out.println("Product not found");
+        }
+    }
+    public static void viewOrders(){
+        List<Order> orders = orderService.getAll();
+        for(Order order : orders){
+            System.out.println("ID: " + order.getOrderId() + ", User ID: " + order.getUserId() + ", Total Price: " + order.getTotalAmount()
+            + ", Date: " + order.getDate());
         }
     }
 }

@@ -34,4 +34,11 @@ public class ProductService implements CRUD<Product> {
     public List<Product> getAll() {
         return products.values().stream().collect(Collectors.toList());
     }
+
+    public void saveProducts(List<Product> products) {
+    }
+
+    public List<Product> getAllProducts() {
+        return null;
+    }
 }

@@ -12,7 +12,7 @@ public class UserService implements CRUD<User> {
     private Map<String, User> users = new HashMap<>();
     @Override
     public void create(User user) {
-        users.put(user.getId(),user);
+        users.put(String.valueOf(user.getId()),user);
     }
 
     @Override
@@ -22,7 +22,7 @@ public class UserService implements CRUD<User> {
 
     @Override
     public void update(User user) {
-        users.put(user.getId(), user);
+        users.put(String.valueOf(user.getId()), user);
     }
 
     @Override
