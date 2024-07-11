@@ -21,6 +21,9 @@ public class Order {
     }
     public Order() {}
 
+    public Order(int productId, String productName, double productPrice) {
+    }
+
     public String getOrderId() {
         return orderId;
     }
@@ -70,5 +73,13 @@ public class Order {
     }
 
     public void addProduct(Product product) {
+    }
+
+    public String getProductName() {
+        return null;
+    }
+
+    public String getProductPrice() {
+        return null;
     }
 }

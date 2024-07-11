@@ -6,7 +6,6 @@ import java.util.List;
 
 public class IOFile<T> {
     public static final String USER_PATH = "data/user.txt";
-    public static final String ADMIN_PATH = "data/admin.txt";
     public static final String CATEGORY_PATH = "data/category.txt";
     public static final String PRODUCT_PATH = "data/product.txt";
     public static final String ORDER_PATH = "data/order.txt";

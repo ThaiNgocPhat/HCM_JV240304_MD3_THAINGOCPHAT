@@ -6,10 +6,12 @@ import models.User;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class UserService implements CRUD<User> {
     private Map<String, User> users = new HashMap<>();
+
     @Override
     public void create(User user) {
         users.put(String.valueOf(user.getId()),user);
@@ -33,5 +35,8 @@ public class UserService implements CRUD<User> {
     @Override
     public List<User> getAll() {
         return users.values().stream().collect(Collectors.toList());
+    }
+    public List<User> getAllUsers() {
+        return (List<User>) this.users;
     }
 }
